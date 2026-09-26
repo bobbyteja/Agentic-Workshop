@@ -39,7 +39,13 @@ def read_csv(path: Path, columns: list[str]) -> list[dict[str, str]]:
         reader = csv.DictReader(f)
         if reader.fieldnames != columns:
             raise ValueError(f"{path.name}: expected columns {columns}, found {reader.fieldnames}")
-        return list(reader)
+        rows = []
+        for row in reader:
+            # DictReader puts extra fields under None and fills missing ones with None.
+            if None in row or None in row.values():
+                raise ValueError(f"{path.name} line {reader.line_num}: expected {len(columns)} fields")
+            rows.append(row)
+        return rows
 
 
 def read_customers(path: Path) -> list[tuple]:
@@ -80,4 +86,4 @@ def load(db_path: Path = DB_PATH, seed_dir: Path = SEED_DIR) -> dict[str, int]:
 
 if __name__ == "__main__":
     counts = load()
-    print(f"Loaded {counts['tickets']} tickets and {counts['customers']} customers into {DB_PATH.name}")
+    print(f"Loaded {counts['tickets']} tickets and {counts['customers']} customers into {DB_PATH}")
