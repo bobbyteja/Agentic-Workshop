@@ -142,10 +142,14 @@ def test_rationale_with_abbreviations_passes():
     validate_decision(with_(rationale="Refund vs. credit, e.g. a double charge, so P2."))
 
 
-@pytest.mark.parametrize("payload", ["[]", '"text"', "{not json", ""])
-def test_not_an_object(payload):
-    with pytest.raises(ValidationError):
+@pytest.mark.parametrize(
+    ("payload", "error_type"),
+    [("[]", "model_type"), ('"text"', "model_type"), ("{not json", "json_invalid"), ("", "json_invalid")],
+)
+def test_not_an_object(payload, error_type):
+    with pytest.raises(ValidationError) as exc:
         validate_decision(payload)
+    assert [err["type"] for err in exc.value.errors()] == [error_type]
 
 
 def test_route_for_category_covers_all_categories():
@@ -168,3 +172,9 @@ def test_json_schema_lists_required_fields_with_enums():
     assert set(props["priority"]["enum"]) == {"P1", "P2", "P3", "P4"}
     assert set(props["route"]["enum"]) == set(get_args(Route))
     assert props["rationale"]["type"] == "string"
+
+
+def test_route_description_names_every_pair():
+    description = TriageDecision.model_json_schema()["properties"]["route"]["description"]
+    for category, route in ROUTE_FOR_CATEGORY.items():
+        assert f"{category}->{route}" in description

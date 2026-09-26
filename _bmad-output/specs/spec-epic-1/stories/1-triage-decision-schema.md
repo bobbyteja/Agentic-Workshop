@@ -60,6 +60,28 @@ context: ['{project-root}/_bmad-output/specs/spec-epic-1/SPEC.md', '{project-roo
 - Given any valid decision, when it is validated and then `model_dump()`-ed, then the result is a plain dict that `json.dumps` serialises with exactly the four fields.
 - Given `TriageDecision.model_json_schema()`, when inspected, then it lists the four required fields with their allowed values as enums.
 
+### Review Findings
+
+Code review 2026-09-26 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor), diff `b3b8661..7accafd`.
+
+- [x] [Review][Patch] Build the `route` field description from `ROUTE_FOR_CATEGORY` instead of a hand-written copy of the pairing, and test that it names every pair [triage_schema.py:33]
+- [x] [Review][Patch] Pin the "clear validation error" for non-object input by asserting the error type (`json_invalid` / `model_type`), not only `ValidationError` [tests/test_triage_schema.py:146]
+- [x] [Review][Defer] The schema is not yet shown to work as structured output with `ChatGoogleGenerativeAI` / `ChatGroq` (`additionalProperties: false` from `extra="forbid"`) [triage_schema.py:29] — deferred: maybe-false, would be medium if true. Settle it in Epic 2 CAP-4 by calling `with_structured_output(TriageDecision)` on both providers.
+
+Rejected:
+- Zero-width-only rationale passes (edge): low. A model is unlikely to produce it, and the fix needs a custom character list.
+- Duplicate JSON keys, last one wins (edge): low. LLM structured output doesn't produce this, and the fix needs a custom JSON hook.
+- `model_construct` instance returned without re-validation (edge): low. Outside the `dict | str` contract; same as #9 in Pass 1.
+- `pyproject.toml` edited outside the Code Map (auditor): false. The Code Map lists it and Implementation Notes record why `pythonpath` is needed.
+- Rationale doesn't have to name the rule (auditor): rejected because the fix would edit the spec. The frozen human decision is non-empty only. SPEC.md's open question should be closed through `/bmad-spec`.
+- `review_loop_iteration: 0` contradicts the Pass 1 log (auditor, blind): rejected because the fix would edit the spec under review.
+- Route check depends on field order (blind): false. Reordering fails `test_route_category_mismatch`, and Implementation Notes document the choice.
+- Allowed values not tested against `TRIAGE_POLICY.md` (blind): low. The policy is read-only and the auditor confirmed the values match. Parsing markdown in a test adds complexity.
+- `validate_decision` rejects `bytes` (blind): false. It fails loudly with a `ValidationError` and bytes are outside the `dict | str` contract.
+- Empty `""` rationale not in the test (blind): false. It takes the same `.strip()` branch that the `"   "` test pins.
+- Docstring says "one-sentence rationale" (blind): false. It describes the intended content, which matches the policy. It doesn't claim the validator enforces it.
+- `ROUTE_FOR_CATEGORY` is a mutable dict (blind): low. No caller mutates it; decided in Pass 1 #7.
+
 ## Implementation Notes
 
 - Added `pythonpath = ["."]` to `[tool.pytest.ini_options]` in `pyproject.toml`: pytest's default import mode puts `tests/` rather than the repo root on `sys.path`, so without it `from triage_schema import ...` fails to import. Config only, no new dependency.

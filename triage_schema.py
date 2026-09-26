@@ -30,10 +30,9 @@ class TriageDecision(BaseModel):
     category: Category
     priority: Priority
     route: Route = Field(
-        description=(
-            "Must be the team for the category: billing->billing-team, bug->bug-team, "
-            "access->access-team, performance->performance-team, how-to->how-to-team."
-        )
+        description="Must be the team for the category: "
+        + ", ".join(f"{c}->{r}" for c, r in ROUTE_FOR_CATEGORY.items())
+        + "."
     )
     rationale: str
 
